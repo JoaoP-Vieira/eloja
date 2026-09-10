@@ -1,0 +1,18 @@
+{
+  "profiles": {
+    "eloja_inventario_worker": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development",
+        "RABBITMQ_HOST": "localhost",
+        "RABBITMQ_PORT": "5672",
+        "RABBITMQ_PASSWORD": "dev",
+        "RABBITMQ_USER": "dev",
+        "RABBITMQ_VHOST": "/",
+        "RABBITMQ_USESSL": "false"
+      },
+      "dotnetRunMessages": true
+    }
+  },
+  "$schema": "http://json.schemastore.org/launchsettings.json"
+}

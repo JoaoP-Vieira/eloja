@@ -1,0 +1,43 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.37502.11
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "eloja.API", "eloja.API\eloja.API.csproj", "{6A8E132F-60B0-4532-BC45-227A4CC136AE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "eloja.Data", "eloja.Data\eloja.Data.csproj", "{C188312E-7AC6-4485-A89E-0B97D5D7A51F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "eloja.Services", "eloja.Services\eloja.Services.csproj", "{4BC56663-D10B-48D0-8139-4D43EC69ABF2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "eloja.IoC", "eloja.IoC\eloja.IoC.csproj", "{9567376F-E275-4FCE-AE9A-557F9072AE0A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6A8E132F-60B0-4532-BC45-227A4CC136AE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6A8E132F-60B0-4532-BC45-227A4CC136AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6A8E132F-60B0-4532-BC45-227A4CC136AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6A8E132F-60B0-4532-BC45-227A4CC136AE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C188312E-7AC6-4485-A89E-0B97D5D7A51F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C188312E-7AC6-4485-A89E-0B97D5D7A51F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C188312E-7AC6-4485-A89E-0B97D5D7A51F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C188312E-7AC6-4485-A89E-0B97D5D7A51F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4BC56663-D10B-48D0-8139-4D43EC69ABF2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4BC56663-D10B-48D0-8139-4D43EC69ABF2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4BC56663-D10B-48D0-8139-4D43EC69ABF2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4BC56663-D10B-48D0-8139-4D43EC69ABF2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9567376F-E275-4FCE-AE9A-557F9072AE0A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9567376F-E275-4FCE-AE9A-557F9072AE0A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9567376F-E275-4FCE-AE9A-557F9072AE0A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9567376F-E275-4FCE-AE9A-557F9072AE0A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8E2065FA-460C-4B5A-8631-73F602A6AE41}
+	EndGlobalSection
+EndGlobal

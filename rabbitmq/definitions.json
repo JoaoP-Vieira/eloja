@@ -1,0 +1,193 @@
+{
+  "rabbit_version": "4.0.0",
+  "rabbitmq_version": "4.0.0",
+  "product_name": "RabbitMQ",
+  "product_version": "4.0.0",
+  "users": [
+    {
+      "name": "dev",
+      "password": "dev",
+      "tags": ["administrator"]
+    }
+  ],
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "dev",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "queues": [
+    {
+      "name": "queue.ordem.criada",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "queue.ordem.criada.deadletter"
+      }
+    },
+    {
+      "name": "queue.ordem.criada.deadletter",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "queue.ordem.confirmada",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "queue.ordem.confirmada.deadletter"
+      }
+    },
+    {
+      "name": "queue.ordem.confirmada.deadletter",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "queue.ordem.cancelada",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "queue.ordem.cancelada.deadletter"
+      }
+    },
+    {
+      "name": "queue.ordem.cancelada.deadletter",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "queue.inventario.reservar",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "queue.inventario.reservar.deadletter"
+      }
+    },
+    {
+      "name": "queue.inventario.reservar.deadletter",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "queue.inventario.reservar-rollback",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "queue.inventario.reservar-rollback.deadletter"
+      }
+    },
+    {
+      "name": "queue.inventario.reservar-rollback.deadletter",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "queue.inventario.reservar-db-save",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "",
+        "x-dead-letter-routing-key": "queue.inventario.reservar-db-save.deadletter"
+      }
+    },
+    {
+      "name": "queue.inventario.reservar-db-save.deadletter",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "exchange.ordem.criada",
+      "vhost": "/",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "exchange.ordem.cancelada",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "exchange.ordem.criada",
+      "vhost": "/",
+      "destination": "queue.ordem.criada",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {}
+    },
+    {
+      "source": "exchange.ordem.criada",
+      "vhost": "/",
+      "destination": "queue.inventario.reservar",
+      "destination_type": "queue",
+      "routing_key": "",
+      "arguments": {}
+    },
+    {
+      "source": "exchange.ordem.cancelada",
+      "vhost": "/",
+      "destination": "queue.ordem.cancelada",
+      "destination_type": "queue",
+      "routing_key": "cancelamento",
+      "arguments": {}
+    },
+    {
+      "source": "exchange.ordem.cancelada",
+      "vhost": "/",
+      "destination": "queue.ordem.cancelada",
+      "destination_type": "queue",
+      "routing_key": "cancelamento-sem-reserva",
+      "arguments": {}
+    },
+    {
+      "source": "exchange.ordem.cancelada",
+      "vhost": "/",
+      "destination": "queue.inventario.reservar-rollback",
+      "destination_type": "queue",
+      "routing_key": "cancelamento",
+      "arguments": {}
+    }
+  ]
+}

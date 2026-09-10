@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.37614.0 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "eloja-ordem-worker", "eloja-ordem-worker\eloja-ordem-worker.csproj", "{E19C712D-2EB6-47FB-9433-BAB1EAB3417A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E19C712D-2EB6-47FB-9433-BAB1EAB3417A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E19C712D-2EB6-47FB-9433-BAB1EAB3417A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E19C712D-2EB6-47FB-9433-BAB1EAB3417A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E19C712D-2EB6-47FB-9433-BAB1EAB3417A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F27140C0-BCA6-4763-8FF4-387F0933B2F7}
+	EndGlobalSection
+EndGlobal
