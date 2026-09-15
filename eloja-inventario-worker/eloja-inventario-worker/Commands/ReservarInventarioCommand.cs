@@ -2,6 +2,9 @@
 using eloja_inventario_worker.Data.Interfaces;
 using eloja_inventario_worker.Infrastructure;
 using eloja_inventario_worker.Model;
+using Polly;
+using Polly.CircuitBreaker;
+using Polly.Registry;
 using Prometheus;
 using StackExchange.Redis;
 using Wolverine;
@@ -41,6 +44,7 @@ namespace eloja_inventario_worker.Commands
 
 		private Inventario? RegistroInventario { get; set; }
 
+		private readonly ResiliencePipeline _pipeline;
 		private readonly ILogger<ReservarInventarioCommandHandler> _logger;
 		private readonly IInventarioRepository _inventarioRepository;
 		private readonly IRedisConnection _redisConnection;
@@ -51,11 +55,13 @@ namespace eloja_inventario_worker.Commands
 			new CounterConfiguration { LabelNames = new[] { "resultado" } });
 
 		public ReservarInventarioCommandHandler(
+			ResiliencePipelineProvider<string> pipelineProvider,
 			ILogger<ReservarInventarioCommandHandler> logger,
 			IInventarioRepository inventarioRepository,
 			IRedisConnection redisConnection,
 			IMessageBus bus)
 		{
+			_pipeline = pipelineProvider.GetPipeline("redis");
 			_logger = logger;
 			_inventarioRepository = inventarioRepository;
 			_redisConnection = redisConnection;
@@ -67,18 +73,21 @@ namespace eloja_inventario_worker.Commands
 			if (command == null)
 			{
 				_logger.LogError("Comando nulo recebido");
+				ReservasProcessadas.WithLabels("comando_invalido").Inc();
 				return;
 			}
 
 			if (command.usuarioId <= 0)
 			{
 				_logger.LogError("Comando inválido recebido: usuário inválido");
+				ReservasProcessadas.WithLabels("comando_invalido").Inc();
 				return;
 			}
 
 			if (command.Produtos == null || command.Produtos.Length == 0)
 			{
 				_logger.LogError("Comando inválido recebido: Ordem do usuário {usuario} não possui produtos", command.usuarioId);
+				ReservasProcessadas.WithLabels("comando_invalido").Inc();
 				return;
 			}
 
@@ -95,14 +104,20 @@ namespace eloja_inventario_worker.Commands
 					RedisValue disponivelSeed = 0;
 					RedisValue reservadaSeed = 0;
 
-					if (await redis.KeyExistsAsync(chaves) < chaves.Length)
+					var chavesExistentes = await _pipeline.ExecuteAsync(
+						async ct => await redis.KeyExistsAsync(chaves),
+						cancellationToken);
+
+					if (chavesExistentes < chaves.Length)
 					{
 						var registro = await GetInventarioAsync(produto.id);
 						disponivelSeed = registro.quantidade_disponivel;
 						reservadaSeed = registro.quantidade_reservada;
 					}
 
-					resultado = (int)await redis.ScriptEvaluateAsync(ValidaEstoqueScript, chaves, new RedisValue[] { produto.quantidadeSolicitada, disponivelSeed, reservadaSeed });
+					resultado = await _pipeline.ExecuteAsync(async ct => 
+						(int)await redis.ScriptEvaluateAsync(ValidaEstoqueScript, chaves, [produto.quantidadeSolicitada, disponivelSeed, reservadaSeed]),
+						cancellationToken);
 
 					if (resultado == 0)
 					{
@@ -118,6 +133,14 @@ namespace eloja_inventario_worker.Commands
 
 					ReservasProcessadas.WithLabels("sucesso").Inc();
 				}
+			}
+			catch (BrokenCircuitException ex)
+			{
+				_logger.LogWarning(ex, "Circuito do Redis aberto, requisição rejeitada");
+
+				ReservasProcessadas.WithLabels("circuito_aberto").Inc();
+
+				throw;
 			}
 			catch (Exception ex)
 			{

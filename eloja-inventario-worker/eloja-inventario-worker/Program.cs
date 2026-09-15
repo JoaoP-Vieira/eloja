@@ -14,6 +14,9 @@ using Wolverine;
 using Wolverine.ErrorHandling;
 using Wolverine.HealthChecks;
 using Wolverine.RabbitMQ;
+using Polly;
+using Polly.CircuitBreaker;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 string connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -48,6 +51,10 @@ builder.Services.AddWolverine(opts =>
 		};
 	});
 
+	opts.OnException<BrokenCircuitException>().MoveToErrorQueue();
+	opts.OnException<RedisConnectionException>().MoveToErrorQueue();
+	opts.OnException<RedisTimeoutException>().MoveToErrorQueue();
+
 	opts.OnAnyException()
 		.RetryWithCooldown(300.Milliseconds(), 1.Seconds(), 5.Seconds())
 		.Then.MoveToErrorQueue();
@@ -55,19 +62,13 @@ builder.Services.AddWolverine(opts =>
 	opts.ListenToRabbitQueue("queue.inventario.reservar")
 		.DeadLetterQueueing(new DeadLetterQueue("queue.inventario.reservar.deadletter"))
 		.DefaultIncomingMessage<ReservarInventarioCommand>()
-		.PreFetchCount(100)
-		.ListenerCount(5)
-		.CircuitBreaker(cb =>
-		{
-			cb.PauseTime = 1.Minutes();
-			cb.FailurePercentageThreshold = 10;
-		})
-		.UseDurableInbox();
+		.PreFetchCount(20)
+		.ListenerCount(5);
 
 	opts.ListenToRabbitQueue("queue.inventario.reservar-db-save")
 		.DeadLetterQueueing(new DeadLetterQueue("queue.inventario.reservar-db-save.deadletter"))
 		.DefaultIncomingMessage<ReservaInventarioDbSaveCommand>()
-		.PreFetchCount(100)
+		.PreFetchCount(20)
 		.ListenerCount(5)
 		.CircuitBreaker(cb =>
 		{
@@ -105,6 +106,17 @@ builder.Services.AddScoped<IInventarioRepository, InventarioRepository>();
 
 builder.Services.Configure<RedisSettings>(builder.Configuration.GetSection("Redis"));
 builder.Services.AddSingleton<IRedisConnection, RedisConnection>();
+
+builder.Services.AddResiliencePipeline("redis", rp => {
+	rp.AddCircuitBreaker(new CircuitBreakerStrategyOptions
+	{
+		FailureRatio = 0.5,
+		MinimumThroughput = 10,
+		SamplingDuration = TimeSpan.FromSeconds(30),
+		BreakDuration = TimeSpan.FromSeconds(30)
+	})
+	.AddTimeout(TimeSpan.FromSeconds(2));
+});
 
 var host = builder.Build();
 
