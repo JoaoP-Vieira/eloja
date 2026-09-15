@@ -1,4 +1,5 @@
 ﻿using Npgsql;
+using Polly;
 
 namespace eloja_inventario_worker.Data.Interfaces
 {

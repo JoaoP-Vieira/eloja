@@ -5,18 +5,22 @@ using eloja_inventario_worker.Data.Interfaces;
 using eloja_inventario_worker.Infrastructure;
 using JasperFx.Core;
 using Microsoft.AspNetCore.Builder;
+using Npgsql;
+using Npgsql.PostgresTypes;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Polly;
+using Polly.CircuitBreaker;
+using Polly.Registry;
+using Polly.Retry;
 using Prometheus;
 using Serilog;
 using Serilog.Sinks.Grafana.Loki;
+using StackExchange.Redis;
 using Wolverine;
 using Wolverine.ErrorHandling;
 using Wolverine.HealthChecks;
 using Wolverine.RabbitMQ;
-using Polly;
-using Polly.CircuitBreaker;
-using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 string connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -54,6 +58,7 @@ builder.Services.AddWolverine(opts =>
 	opts.OnException<BrokenCircuitException>().MoveToErrorQueue();
 	opts.OnException<RedisConnectionException>().MoveToErrorQueue();
 	opts.OnException<RedisTimeoutException>().MoveToErrorQueue();
+	opts.OnException<NpgsqlException>().MoveToErrorQueue();
 
 	opts.OnAnyException()
 		.RetryWithCooldown(300.Milliseconds(), 1.Seconds(), 5.Seconds())
@@ -69,12 +74,7 @@ builder.Services.AddWolverine(opts =>
 		.DeadLetterQueueing(new DeadLetterQueue("queue.inventario.reservar-db-save.deadletter"))
 		.DefaultIncomingMessage<ReservaInventarioDbSaveCommand>()
 		.PreFetchCount(20)
-		.ListenerCount(5)
-		.CircuitBreaker(cb =>
-		{
-			cb.PauseTime = 1.Minutes();
-			cb.FailurePercentageThreshold = 10;
-		});
+		.ListenerCount(5);
 
 	opts.PublishMessage<ReservaInventarioDbSaveCommand>()
 		.ToRabbitQueue("queue.inventario.reservar-db-save");
@@ -100,10 +100,6 @@ builder.Services.AddOpenTelemetry()
 		.AddSource("Npgsql")
 		.AddOtlpExporter());
 
-builder.Services.AddScoped<IPgDbContext>((c) => new PgDbContext(connectionString));
-builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-builder.Services.AddScoped<IInventarioRepository, InventarioRepository>();
-
 builder.Services.Configure<RedisSettings>(builder.Configuration.GetSection("Redis"));
 builder.Services.AddSingleton<IRedisConnection, RedisConnection>();
 
@@ -117,6 +113,35 @@ builder.Services.AddResiliencePipeline("redis", rp => {
 	})
 	.AddTimeout(TimeSpan.FromSeconds(2));
 });
+
+builder.Services.AddResiliencePipeline("postgres", rp => {
+	rp.AddRetry(new RetryStrategyOptions
+	{
+		ShouldHandle = new PredicateBuilder()
+				.Handle<NpgsqlException>()
+				.Handle<TimeoutException>()
+				.Handle<OperationCanceledException>(),
+		MaxRetryAttempts = 3,
+		Delay = TimeSpan.FromMilliseconds(100),
+		BackoffType = DelayBackoffType.Exponential,
+		UseJitter = true
+	})
+		.AddTimeout(TimeSpan.FromSeconds(5))
+		.AddCircuitBreaker(new CircuitBreakerStrategyOptions
+		{
+			FailureRatio = 0.5,
+			MinimumThroughput = 10,
+			SamplingDuration = TimeSpan.FromSeconds(30),
+			BreakDuration = TimeSpan.FromSeconds(30),
+			ShouldHandle = new PredicateBuilder()
+				.Handle<NpgsqlException>()
+				.Handle<TimeoutException>()
+		});
+});
+
+builder.Services.AddScoped<IPgDbContext>((c) => new PgDbContext(connectionString));
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IInventarioRepository, InventarioRepository>();
 
 var host = builder.Build();
 

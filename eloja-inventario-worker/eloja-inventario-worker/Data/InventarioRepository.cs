@@ -1,6 +1,7 @@
 ﻿using Dapper;
 using eloja_inventario_worker.Data.Interfaces;
 using eloja_inventario_worker.Model;
+using Polly.Registry;
 
 namespace eloja_inventario_worker.Data
 {
@@ -22,7 +23,8 @@ namespace eloja_inventario_worker.Data
 				modificado_em = NOW()
 			WHERE produto_id = @produtoId";
 
-		public InventarioRepository(IPgDbContext dbContext) : base(dbContext) { }
+		public InventarioRepository(IPgDbContext dbContext, ResiliencePipelineProvider<string> pipelineProvider)
+			: base(dbContext, pipelineProvider) { }
 
 		public async Task<Inventario?> SelectByIdProduto(Guid produtoId)
 		{
@@ -38,11 +40,12 @@ namespace eloja_inventario_worker.Data
 			var conn = _dbContext.GetConnection();
 			var transaction = _dbContext.Transaction;
 
-			await conn.ExecuteAsync(UPDATE_RESERVA_INVENTARIO,
-				new {
-					produtoId = produto.id,
-					quantidade = produto.quantidadeSolicitada
-				}, transaction);
+			await _pipeline.ExecuteAsync(async (ctx) =>
+				await conn.ExecuteAsync(UPDATE_RESERVA_INVENTARIO,
+					new {
+						produtoId = produto.id,
+						quantidade = produto.quantidadeSolicitada
+					}, transaction));
 		}
 	}
 }
