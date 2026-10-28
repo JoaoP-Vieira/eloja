@@ -8,6 +8,14 @@
 
 **Input**: User description: "estrutura inicial carrinho de compras - O back-end deve ser capaz de armazenar em memória no Redis os itens do carrinho do usuário no formato json. Deve existir rotas capazes de alterar esse valor com segurança. O usuário não pode salvar no carrinho uma quantidade de um item maior do que a quantidade disponivel no inventário."
 
+## Clarifications
+
+### Session 2026-10-27
+
+- Q: Quando o estoque cair abaixo da quantidade já no carrinho, o que a consulta do carrinho deve fazer com o item? → A: Retornar o item como salvo, marcado como "estoque insuficiente" e informando a quantidade disponível atual (sem alterar o carrinho).
+- Q: O prazo de expiração do carrinho deve ser renovado a cada operação ou só nas alterações? → A: Renovado somente a cada alteração (adicionar, alterar, remover); consultas não renovam.
+- Q: Deve existir um limite máximo de produtos diferentes por carrinho? → A: Sim, 50 produtos diferentes, ajustável por configuração.
+
 ## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Adicionar item ao carrinho respeitando o estoque (Priority: P1)
@@ -40,6 +48,7 @@ Um usuário autenticado consulta o conteúdo atual do seu carrinho (produtos e q
 1. **Given** um usuário com itens no carrinho, **When** ele consulta o carrinho, **Then** recebe a lista de itens com produto e quantidade.
 2. **Given** um usuário que nunca adicionou itens, **When** ele consulta o carrinho, **Then** recebe um carrinho vazio (não um erro).
 3. **Given** dois usuários distintos com carrinhos diferentes, **When** cada um consulta o seu carrinho, **Then** cada um vê somente os próprios itens.
+4. **Given** um carrinho com 7 unidades de um produto cujo estoque caiu para 5, **When** o usuário consulta o carrinho, **Then** o item é retornado com quantidade 7, marcado como "estoque insuficiente" e com a quantidade disponível atual (5), sem que o carrinho seja alterado.
 
 ---
 
@@ -80,7 +89,7 @@ O carrinho de um usuário só pode ser lido ou modificado por ele mesmo, e somen
 
 ### Edge Cases
 
-- O estoque disponível diminui depois de o item já estar no carrinho (ex.: outra compra): a consulta do carrinho continua exibindo o que foi salvo, mas qualquer nova alteração é validada contra o estoque atual; a validação definitiva na finalização do pedido está fora do escopo desta feature.
+- O estoque disponível diminui depois de o item já estar no carrinho (ex.: outra compra): a consulta do carrinho continua exibindo a quantidade salva, mas marca o item como "estoque insuficiente" e informa a quantidade disponível atual, sem alterar o carrinho; qualquer nova alteração é validada contra o estoque atual; a validação definitiva na finalização do pedido está fora do escopo desta feature.
 - O usuário envia quantidade maior que o limite aceitável de inteiros ou texto no lugar de número: rejeitado como dado inválido.
 - O serviço de armazenamento em memória do carrinho está indisponível: o usuário recebe erro claro de indisponibilidade temporária e nenhuma alteração parcial é registrada.
 - O carrinho armazenado está corrompido ou em formato inesperado: o sistema não deve expor detalhes internos; trata como erro e preserva a possibilidade de esvaziar o carrinho.
@@ -97,15 +106,16 @@ O carrinho de um usuário só pode ser lido ou modificado por ele mesmo, e somen
 - **FR-003**: O sistema MUST permitir ao usuário autenticado adicionar um produto ao carrinho com uma quantidade; se o produto já existir no carrinho, a quantidade informada é somada à existente.
 - **FR-004**: O sistema MUST permitir ao usuário autenticado definir a quantidade de um item já existente no carrinho.
 - **FR-005**: O sistema MUST permitir ao usuário autenticado remover um item específico e esvaziar o carrinho inteiro.
-- **FR-006**: O sistema MUST permitir ao usuário autenticado consultar o conteúdo atual do próprio carrinho, retornando carrinho vazio quando não houver itens.
+- **FR-006**: O sistema MUST permitir ao usuário autenticado consultar o conteúdo atual do próprio carrinho, retornando carrinho vazio quando não houver itens. Cada item retornado cuja quantidade salva exceda o estoque disponível atual MUST ser sinalizado como "estoque insuficiente", com a quantidade disponível atual, sem modificar o carrinho armazenado.
 - **FR-007**: O sistema MUST rejeitar qualquer adição ou alteração cuja quantidade resultante de um produto no carrinho seja maior que a quantidade disponível no inventário no momento da operação, mantendo o carrinho inalterado e informando a quantidade disponível.
 - **FR-008**: O sistema MUST rejeitar quantidades zero, negativas ou não inteiras, e produtos inexistentes, com mensagens de validação claras.
 - **FR-009**: O sistema MUST exigir autenticação em todas as operações do carrinho e MUST operar exclusivamente sobre o carrinho do usuário autenticado, ignorando qualquer identificador de usuário enviado pelo cliente.
 - **FR-010**: O sistema MUST garantir que operações simultâneas sobre o mesmo carrinho não resultem em quantidade acima do estoque nem em perda de atualizações.
 - **FR-011**: O sistema MUST tratar cada alteração como atômica: ou a operação é aplicada por completo, ou o carrinho permanece como estava.
-- **FR-012**: O sistema MUST expirar automaticamente carrinhos inativos após um período definido por configuração.
+- **FR-012**: O sistema MUST expirar automaticamente carrinhos inativos após um período definido por configuração, renovado somente a cada alteração do carrinho (adicionar, alterar quantidade, remover); consultas não renovam o prazo.
 - **FR-013**: O sistema MUST NOT expor detalhes internos (estrutura de armazenamento, erros técnicos) nas respostas de erro.
 - **FR-014**: A consulta de disponibilidade do inventário MUST considerar a quantidade realmente disponível para venda, sem alterar nem reservar o inventário (o carrinho não reserva estoque).
+- **FR-015**: O sistema MUST limitar o carrinho a 50 produtos diferentes (valor ajustável por configuração), rejeitando com mensagem clara a adição de um novo produto que ultrapasse o limite, sem alterar o carrinho; alterações em produtos já presentes continuam permitidas.
 
 ### Key Entities _(include if feature involves data)_
 
@@ -122,7 +132,7 @@ O carrinho de um usuário só pode ser lido ou modificado por ele mesmo, e somen
 - **SC-002**: 100% das requisições sem autenticação ou direcionadas ao carrinho de outro usuário são rejeitadas ou limitadas ao carrinho do próprio usuário autenticado, sem vazamento de dados.
 - **SC-003**: Um usuário consegue adicionar um item ao carrinho e vê-lo refletido na consulta em menos de 2 segundos em condições normais de uso.
 - **SC-004**: Em testes com pelo menos 50 requisições simultâneas ao mesmo carrinho, o total de um produto no carrinho nunca excede o estoque disponível.
-- **SC-005**: Após a expiração configurada de inatividade, 100% dos carrinhos inativos passam a ser retornados como vazios.
+- **SC-005**: Após a expiração configurada contada da última alteração, 100% dos carrinhos inativos passam a ser retornados como vazios.
 - **SC-006**: Em 100% das falhas (dados inválidos, estoque insuficiente, indisponibilidade), o usuário recebe mensagem compreensível e o carrinho não sofre alteração parcial.
 
 ## Assumptions
@@ -133,6 +143,6 @@ O carrinho de um usuário só pode ser lido ou modificado por ele mesmo, e somen
 - A disponibilidade é lida do inventário existente, sem que o carrinho acesse diretamente dados pertencentes a outro serviço fora dos meios já adotados pelo projeto.
 - O carrinho guarda apenas produto e quantidade; preços, nomes e totais são obtidos do catálogo no momento da exibição ou do pedido e estão fora desta estrutura inicial.
 - O prazo padrão de expiração por inatividade é de 7 dias, ajustável por configuração.
-- Não há limite máximo de itens distintos além do imposto pelo estoque; limites adicionais podem ser definidos futuramente.
+- O limite padrão é de 50 produtos diferentes por carrinho, ajustável por configuração (ver FR-015).
 - Integração com o front-end, finalização de pedido a partir do carrinho e promoções/cupons estão fora do escopo desta estrutura inicial.
 - O Redis já faz parte da infraestrutura do projeto e estará disponível no ambiente.
