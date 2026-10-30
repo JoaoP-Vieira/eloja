@@ -39,7 +39,62 @@ namespace eloja.Data.Repositories
 			NULL,
 			@PrecoUnitario)";
 
+		// Leitura somente de public.inventario (tabela do inventario-worker); saldo = disponivel - reservada
+		private const string LISTAGEM_FROM_WHERE = @"from
+			public.produto p
+			left join public.categoria c on c.id = p.categoria_id
+			left join (
+				select produto_id, sum(quantidade_disponivel - quantidade_reservada) saldo
+				from public.inventario
+				group by produto_id
+			) i on i.produto_id = p.id
+		where
+			(@nome::text is null or position(lower(@nome::text) in lower(p.nome)) > 0)
+			and (@categoriaId::uuid is null or p.categoria_id = @categoriaId::uuid)";
+
+		private const string LISTAGEM_SELECT = @"select
+			p.id ""Id"",
+			p.nome ""Nome"",
+			p.descricao ""Descricao"",
+			p.preco_unitario ""PrecoUnitario"",
+			p.categoria_id ""CategoriaId"",
+			c.nome ""CategoriaNome"",
+			c.descricao ""CategoriaDescricao"",
+			coalesce(i.saldo, 0) > 0 ""TemEstoque"" ";
+
+		private const string LISTAGEM_PAGINACAO = " limit @tamanhoPagina offset (@pagina - 1) * @tamanhoPagina";
+
+		private const string LISTAGEM_ORDER_ASC = " order by (coalesce(i.saldo, 0) > 0) desc, lower(p.nome) asc, p.id ";
+		private const string LISTAGEM_ORDER_DESC = " order by (coalesce(i.saldo, 0) > 0) desc, lower(p.nome) desc, p.id ";
+
+		private const string COUNT_QUERY = "select count(*) " + LISTAGEM_FROM_WHERE;
+
 		public ProdutoRepository(IPgDbContext dbContext) : base(dbContext) { }
+
+		public async Task<IEnumerable<ProdutoListagem>> SelectPaginadoAsync(FiltroProdutoListagem filtro)
+		{
+			var conn = _dbContext.GetConnection();
+
+			var order = filtro.Descendente ? LISTAGEM_ORDER_DESC : LISTAGEM_ORDER_ASC;
+			var sql = LISTAGEM_SELECT + LISTAGEM_FROM_WHERE + order + LISTAGEM_PAGINACAO;
+
+			return await conn.QueryAsync<ProdutoListagem>(sql, ParametrosListagem(filtro));
+		}
+
+		public async Task<int> CountAsync(FiltroProdutoListagem filtro)
+		{
+			var conn = _dbContext.GetConnection();
+
+			return await conn.ExecuteScalarAsync<int>(COUNT_QUERY, ParametrosListagem(filtro));
+		}
+
+		private static object ParametrosListagem(FiltroProdutoListagem filtro) => new
+		{
+			nome = filtro.Nome,
+			categoriaId = filtro.CategoriaId,
+			pagina = filtro.Pagina,
+			tamanhoPagina = filtro.TamanhoPagina
+		};
 
 		public async Task<Produto?> SelectByIdAsync(Guid id)
 		{

@@ -4,3 +4,9 @@ GET {{eloja.api_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+GET {{eloja.api_HostAddress}}/produto?pagina=1&tamanhoPagina=10&nome=camiseta&categoriaId={{categoriaId}}&direcao=asc
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###

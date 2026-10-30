@@ -12,3 +12,5 @@ create table public.inventario (
 alter table public.inventario add constraint inventario_produto_fk foreign key (produto_id) references public.produto(id) on
 delete
     cascade;
+
+create index inventario_produto_id_idx on public.inventario (produto_id);

@@ -1,0 +1,106 @@
+openapi: 3.0.3
+info:
+  title: Eloja API - Consulta de produtos paginada
+  version: 1.0.0
+paths:
+  /produto:
+    get:
+      summary: Lista produtos de forma paginada
+      description: >
+        Retorna uma página de produtos com indicador de estoque. Produtos sem saldo
+        disponível aparecem sempre depois dos produtos com saldo, em qualquer direção
+        de ordenação.
+      security:
+        - Bearer: []
+      parameters:
+        - name: nome
+          in: query
+          description: Termo contido no nome do produto (insensível a maiúsculas/minúsculas). Vazio = sem filtro.
+          schema: { type: string }
+        - name: categoriaId
+          in: query
+          description: Retorna somente produtos desta categoria.
+          schema: { type: string, format: uuid }
+        - name: pagina
+          in: query
+          description: Número da página, a partir de 1.
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: tamanhoPagina
+          in: query
+          description: Quantidade de itens por página.
+          schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+        - name: direcao
+          in: query
+          description: Direção da ordenação alfabética por nome.
+          schema: { type: string, enum: [asc, desc], default: asc }
+      responses:
+        '200':
+          description: Página de produtos (lista vazia se nada corresponder ou se a página estiver fora do intervalo).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginaProdutos'
+              example:
+                itens:
+                  - id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    nome: Camiseta Azul
+                    descricao: Camiseta de algodão
+                    categoria:
+                      id: 7c9e6679-7425-40de-944b-e07fc1f90ae7
+                      nome: Vestuário
+                      descricao: Roupas em geral
+                    precoUnitario: 59.9
+                    temEstoque: true
+                pagina: 1
+                tamanhoPagina: 10
+                totalItens: 1
+                totalPaginas: 1
+        '400':
+          description: Parâmetro inválido (pagina/tamanhoPagina fora do intervalo, direcao diferente de asc/desc, categoriaId malformado).
+          content:
+            text/plain:
+              schema: { type: string }
+              example: "Erro ao listar produtos: tamanhoPagina deve estar entre 1 e 100."
+        '401':
+          description: Usuário não autenticado.
+        '500':
+          description: Erro inesperado.
+          content:
+            text/plain:
+              schema: { type: string }
+components:
+  securitySchemes:
+    Bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Categoria:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        nome: { type: string }
+        descricao: { type: string }
+    ProdutoListaItem:
+      type: object
+      required: [id, nome, descricao, categoria, precoUnitario, temEstoque]
+      properties:
+        id: { type: string, format: uuid }
+        nome: { type: string }
+        descricao: { type: string }
+        categoria: { $ref: '#/components/schemas/Categoria' }
+        precoUnitario: { type: number, format: decimal }
+        temEstoque:
+          type: boolean
+          description: true quando (quantidade disponível - quantidade reservada) > 0.
+    PaginaProdutos:
+      type: object
+      required: [itens, pagina, tamanhoPagina, totalItens, totalPaginas]
+      properties:
+        itens:
+          type: array
+          items: { $ref: '#/components/schemas/ProdutoListaItem' }
+        pagina: { type: integer }
+        tamanhoPagina: { type: integer }
+        totalItens: { type: integer }
+        totalPaginas: { type: integer }

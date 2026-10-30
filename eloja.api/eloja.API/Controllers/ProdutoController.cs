@@ -19,6 +19,32 @@ namespace eloja.API.Controllers
 		}
 
 		[Authorize]
+		[HttpGet]
+		public async Task<IActionResult> GetProdutos(
+			[FromQuery] string? nome,
+			[FromQuery] Guid? categoriaId,
+			[FromQuery] int? pagina,
+			[FromQuery] int? tamanhoPagina,
+			[FromQuery] string? direcao)
+		{
+			try
+			{
+				var resultado = await _bus.InvokeAsync<PaginaDTO<ProdutoListaItemDTO>>(
+					new ProdutosPaginadosQuery(nome, categoriaId, pagina, tamanhoPagina, direcao));
+
+				return Ok(resultado);
+			}
+			catch (ArgumentException ex)
+			{
+				return StatusCode(400, $"Erro ao listar produtos: {ex.Message}");
+			}
+			catch (Exception ex)
+			{
+				return StatusCode(500, $"Erro ao listar produtos: {ex.Message}");
+			}
+		}
+
+		[Authorize]
 		[HttpGet("{id}")]
 		public async Task<IActionResult> GetProdutoById(Guid id)
 		{
