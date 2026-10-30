@@ -1,9 +1,9 @@
 <!--
 Sync Impact Report
-Version change: 1.0.0 → 1.1.0
-Princípios modificados: II (bullet de observabilidade agora referencia o Princípio VIII)
-Princípios adicionados: VIII. Monitoramento Exclusivamente via Stack Grafana
-Seções modificadas: Fluxo de Desenvolvimento (verificação passa a cobrir I–VIII)
+Version change: 1.1.0 → 1.2.0
+Princípios modificados: IV (Commands/Queries referenciam a camada Services, Princípio IX)
+Princípios adicionados: IX. Separação de Responsabilidades por Camada (Data, Services, IoC)
+Seções modificadas: Fluxo de Desenvolvimento (verificação passa a cobrir I–IX)
 Seções removidas: nenhuma
 Templates que leem a constituição em tempo de execução: não modificados por este comando.
 TODOs adiados: nenhum
@@ -52,7 +52,7 @@ Racional: isolamento entre serviços e previsibilidade de onde cada coisa está.
   Injeção de Dependência (registro centralizado, p.ex. `eloja.IoC/DependencyInjection.cs`
   ou `Program.cs`) e CQRS.
 - Operações de escrita MUST ser modeladas como Commands (pasta `Commands/`) e leituras como
-  Queries (pasta `Queries/`), cada uma com seu handler.
+  Queries (pasta `Queries/`), cada uma com seu handler, na camada Services (Princípio IX).
 - Dependências MUST ser consumidas por interfaces (`IXxxRepository`, `IUnitOfWork`, etc.)
   injetadas por construtor; `new` de serviços/repositórios dentro de handlers MUST NOT ocorrer.
 - Acesso a dados MUST usar o padrão Repository/UnitOfWork existente.
@@ -112,6 +112,26 @@ Racional: a velocidade de entrega é priorizada; o risco assumido é aceito expl
 
 Racional: uma única stack de observabilidade evita fragmentação e já está operacional.
 
+### IX. Separação de Responsabilidades por Camada (Data, Services, IoC)
+Todo serviço back-end MUST organizar seu código em três camadas, cada uma em seu próprio
+projeto dentro da pasta/solução do serviço (padrão `eloja.api`: `eloja.Data`,
+`eloja.Services`, `eloja.IoC`), além do projeto de entrada (API ou worker).
+
+- **Data**: MUST conter somente repositórios, classes (entidades, contextos) e interfaces
+  relacionados à interação com o banco de dados (PostgreSQL, MongoDB).
+- **Services**: MUST conter classes, interfaces, Commands, Queries e DTOs. Toda implementação
+  de uso de algum serviço/tecnologia externa, como Redis, RabbitMQ (via WolverineFX), Kafka e
+  similares, MUST residir nesta camada.
+- **IoC**: MUST conter somente a inversão de dependências (registro de DI das demais camadas).
+- A camada Data MUST NOT conter regras de negócio, Commands/Queries nem integrações com
+  Redis/mensageria; a camada Services MUST NOT acessar o banco diretamente, apenas por
+  interfaces da camada Data.
+- O projeto de entrada (API/worker) MUST apenas compor a aplicação chamando a camada IoC e
+  expor endpoints/handlers; MUST NOT instanciar repositórios ou clientes de infraestrutura.
+
+Racional: fronteiras claras por camada tornam o código previsível e permitem trocar uma
+tecnologia mexendo em um único lugar.
+
 ## Restrições Adicionais
 
 - Segredos reais MUST NOT ser commitados; usar apenas placeholders de desenvolvimento
@@ -125,7 +145,7 @@ Racional: uma única stack de observabilidade evita fragmentação e já está o
 
 - Mudanças seguem o fluxo Spec Kit: specify → plan → tasks → implement.
 - Todo plano MUST incluir uma verificação de conformidade (Constitution Check) contra os
-  princípios I–VIII.
+  princípios I–IX.
 - Mudanças em contratos de eventos MUST considerar produtores e consumidores existentes
   para não quebrar outros serviços.
 - Nomes de eventos, comandos e queries seguem as convenções dos projetos existentes
@@ -144,4 +164,4 @@ Racional: uma única stack de observabilidade evita fragmentação e já está o
   sem justificativa MUST ser corrigidas antes do merge.
 - Orientações de uso no dia a dia estão no `README.md`.
 
-**Version**: 1.1.0 | **Ratified**: 2026-10-27 | **Last Amended**: 2026-10-27
+**Version**: 1.2.0 | **Ratified**: 2026-10-27 | **Last Amended**: 2026-10-29
